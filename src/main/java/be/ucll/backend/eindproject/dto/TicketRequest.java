@@ -3,7 +3,6 @@ package be.ucll.backend.eindproject.dto;
 public class TicketRequest {
     private String code;
     private Long eventId;
-    private Long ownerId;
     private float askingPrice;
 
     public TicketRequest() {}
@@ -22,14 +21,6 @@ public class TicketRequest {
 
     public void setEventId(Long eventId) {
         this.eventId = eventId;
-    }
-
-    public Long getOwnerId() {
-        return ownerId;
-    }
-
-    public void setOwnerId(Long ownerId) {
-        this.ownerId = ownerId;
     }
 
     public float getAskingPrice() {

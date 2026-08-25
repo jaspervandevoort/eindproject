@@ -34,8 +34,11 @@ public class TicketController {
     }
 
     @PostMapping
-    public ResponseEntity<Ticket> createTicket(@RequestBody TicketRequest request) {
-        Ticket createdTicket = ticketService.createTicket(request);
+    public ResponseEntity<Ticket> createTicket(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody TicketRequest request) {
+        Long userId = Long.parseLong(jwt.getSubject());
+        Ticket createdTicket = ticketService.createTicket(request, userId);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdTicket);
     }
 

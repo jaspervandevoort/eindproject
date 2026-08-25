@@ -1,6 +1,12 @@
 package be.ucll.backend.eindproject.service;
 
 import be.ucll.backend.eindproject.dto.TicketRequest;
+import be.ucll.backend.eindproject.exception.DuplicateTicketCodeException;
+import be.ucll.backend.eindproject.exception.EventNotFoundException;
+import be.ucll.backend.eindproject.exception.InvalidTicketPriceException;
+import be.ucll.backend.eindproject.exception.TicketDeletedException;
+import be.ucll.backend.eindproject.exception.TicketNotForSaleException;
+import be.ucll.backend.eindproject.exception.TicketNotFoundException;
 import be.ucll.backend.eindproject.message.TicketAlertMessage;
 import be.ucll.backend.eindproject.message.TicketAlertSender;
 import be.ucll.backend.eindproject.message.TicketValidationMessage;
@@ -85,22 +91,28 @@ public class TicketService {
         return ticketRepository.save(ticket);
     }
 
-    public Ticket createTicket(TicketRequest request) {
+    public Ticket createTicket(TicketRequest request, Long currentUserId) {
         Event event = eventRepository.findById(request.getEventId())
-                .orElseThrow(() -> new RuntimeException("Event not found with id: " + request.getEventId()));
-        User owner = userRepository.findById(request.getOwnerId())
-                .orElseThrow(() -> new RuntimeException("User not found with id: " + request.getOwnerId()));
+                .orElseThrow(() -> new EventNotFoundException(request.getEventId()));
 
         if (ticketRepository.existsByEventIdAndCode(request.getEventId(), request.getCode())) {
-            throw new RuntimeException("A ticket with this code already exists for this event");
+            throw new DuplicateTicketCodeException(request.getEventId(), request.getCode());
         }
+
+        if (request.getAskingPrice() > event.getPrice()) {
+            throw new InvalidTicketPriceException(
+                    "Asking price must not exceed the original ticket price: " + event.getPrice());
+        }
+
+        User owner = userRepository.findById(currentUserId)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + currentUserId));
 
         Ticket ticket = new Ticket(
                 request.getCode(),
                 event,
                 false,
                 false,
-                false,
+                true,
                 request.getAskingPrice(),
                 owner
         );
@@ -163,23 +175,42 @@ public class TicketService {
 
     public Ticket updatePrice(Long ticketId, float newPrice, Long currentUserId) {
         Ticket ticket = ticketRepository.findById(ticketId)
-                .orElseThrow(() -> new RuntimeException("Ticket not found with id: " + ticketId));
+                .orElseThrow(() -> new TicketNotFoundException(ticketId));
 
-
-        if (newPrice > ticket.getAskingPrice()) {
-            throw new RuntimeException("Price must be lower than current asking price: " + ticket.getAskingPrice());
+        User owner = ticket.getOwner();
+        if (!isAdmin() && (owner == null || !owner.getId().equals(currentUserId))) {
+            throw new AccessDeniedException("You are not the owner of this ticket");
         }
+
+        if (ticket.isDeleted()) {
+            throw new TicketDeletedException(ticketId);
+        }
+
+        if (!ticket.isForSale()) {
+            throw new TicketNotForSaleException(ticketId);
+        }
+
+        float originalPrice = ticket.getEvent().getPrice();
+        if (newPrice >= originalPrice) {
+            throw new InvalidTicketPriceException(
+                    "New asking price must be lower than the original ticket price: " + originalPrice);
+        }
+
         ticket.setAskingPrice(newPrice);
         return ticketRepository.save(ticket);
     }
 
     public void deleteTicket(Long ticketId, Long currentUserId) {
         Ticket ticket = ticketRepository.findById(ticketId)
-                .orElseThrow(() -> new RuntimeException("Ticket not found with id: " + ticketId));
+                .orElseThrow(() -> new TicketNotFoundException(ticketId));
 
         User owner = ticket.getOwner();
         if (!isAdmin() && (owner == null || !owner.getId().equals(currentUserId))) {
             throw new AccessDeniedException("You are not the owner of this ticket");
+        }
+
+        if (!ticket.isForSale()) {
+            throw new TicketNotForSaleException(ticketId);
         }
 
         ticket.setDeleted(true);

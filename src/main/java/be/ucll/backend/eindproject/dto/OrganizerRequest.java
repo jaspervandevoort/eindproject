@@ -2,15 +2,21 @@ package be.ucll.backend.eindproject.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import org.hibernate.validator.constraints.URL;
 
 public class OrganizerRequest {
 
+    @NotBlank
     private String name;
 
+    @NotBlank
+    @Email
     private String email;
 
+    @NotBlank
     private String password;
 
+    @URL
     private String validationUrl;
 
     public String getName() {
