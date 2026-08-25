@@ -3,6 +3,8 @@ package be.ucll.backend.eindproject.service;
 import be.ucll.backend.eindproject.dto.TicketRequest;
 import be.ucll.backend.eindproject.message.TicketAlertMessage;
 import be.ucll.backend.eindproject.message.TicketAlertSender;
+import be.ucll.backend.eindproject.message.TicketValidationMessage;
+import be.ucll.backend.eindproject.message.TicketValidationSender;
 import be.ucll.backend.eindproject.model.User;
 import be.ucll.backend.eindproject.model.Event;
 import be.ucll.backend.eindproject.model.Ticket;
@@ -29,16 +31,19 @@ public class TicketService {
     private final TicketAlertRepository ticketAlertRepository;
     private final TicketAlertSender ticketAlertSender;
     private final TicketStreamService ticketStreamService;
+    private final TicketValidationSender ticketValidationSender;
 
     public TicketService(TicketRepository ticketRepository, EventRepository eventRepository,
                          UserRepository userRepository, TicketAlertRepository ticketAlertRepository,
-                         TicketAlertSender ticketAlertSender, TicketStreamService ticketStreamService) {
+                         TicketAlertSender ticketAlertSender, TicketStreamService ticketStreamService,
+                         TicketValidationSender ticketValidationSender) {
         this.ticketRepository = ticketRepository;
         this.eventRepository = eventRepository;
         this.userRepository = userRepository;
         this.ticketAlertRepository = ticketAlertRepository;
         this.ticketAlertSender = ticketAlertSender;
         this.ticketStreamService = ticketStreamService;
+        this.ticketValidationSender = ticketValidationSender;
     }
 
     private boolean isAdmin() {
@@ -99,7 +104,12 @@ public class TicketService {
                 request.getAskingPrice(),
                 owner
         );
-        return ticketRepository.save(ticket);
+        Ticket savedTicket = ticketRepository.save(ticket);
+
+        // Vraag automatische validatie aan bij de externe validatieservice (via RabbitMQ)
+        ticketValidationSender.send(new TicketValidationMessage(savedTicket.getId()));
+
+        return savedTicket;
     }
 
     public Ticket setTicketForSale(Long ticketId, float newPrice, Long currentUserId) {

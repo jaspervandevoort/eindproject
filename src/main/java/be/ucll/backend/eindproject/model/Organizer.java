@@ -19,6 +19,9 @@ public class Organizer {
     @Column(name = "email")
     private String email;
 
+    @Column(name = "validation_url")
+    private String validationUrl;
+
     @OneToOne
     @JoinColumn(name = "user_id")
     private User user;
@@ -49,6 +52,14 @@ public class Organizer {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public String getValidationUrl() {
+        return validationUrl;
+    }
+
+    public void setValidationUrl(String validationUrl) {
+        this.validationUrl = validationUrl;
     }
 
     public List<Event> getEvents() {

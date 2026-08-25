@@ -7,7 +7,10 @@ import be.ucll.backend.eindproject.model.Role;
 import be.ucll.backend.eindproject.model.User;
 import be.ucll.backend.eindproject.repository.OrganizerRepository;
 import be.ucll.backend.eindproject.repository.UserRepository;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -41,10 +44,27 @@ public class OrganizerService {
         organizer.setName(request.getName());
         organizer.setEmail(emailLowercase);
         organizer.setUser(user);
+        organizer.setValidationUrl(request.getValidationUrl());
 
         return organizerRepository.save(organizer);
     }
 
+    private boolean isAdmin() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("SCOPE_ROLE_ADMIN"));
+    }
 
+    public Organizer updateValidationUrl(Long organizerId, String validationUrl, Long currentUserId) {
+        Organizer organizer = organizerRepository.findById(organizerId)
+                .orElseThrow(() -> new RuntimeException("Organizer not found with id: " + organizerId));
 
+        User organizerUser = organizer.getUser();
+        if (!isAdmin() && (organizerUser == null || !organizerUser.getId().equals(currentUserId))) {
+            throw new AccessDeniedException("You are not this organizer");
+        }
+
+        organizer.setValidationUrl(validationUrl);
+        return organizerRepository.save(organizer);
+    }
 }

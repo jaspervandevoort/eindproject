@@ -11,6 +11,8 @@ public class OrganizerRequest {
 
     private String password;
 
+    private String validationUrl;
+
     public String getName() {
         return name;
     }
@@ -33,5 +35,13 @@ public class OrganizerRequest {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public String getValidationUrl() {
+        return validationUrl;
+    }
+
+    public void setValidationUrl(String validationUrl) {
+        this.validationUrl = validationUrl;
     }
 }

@@ -21,6 +21,7 @@ CREATE TABLE ORGANIZER (
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL,
     user_id BIGINT,
+    validation_url VARCHAR(500),
 
     FOREIGN KEY (user_id) REFERENCES APP_USER(id)
 );
