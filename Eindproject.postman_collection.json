@@ -1,0 +1,451 @@
+{
+	"info": {
+		"name": "Eindproject API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080/api/v1"
+		},
+		{
+			"key": "token",
+			"value": ""
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{token}}",
+				"type": "string"
+			}
+		]
+	},
+	"item": [
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.token) {",
+									"    pm.collectionVariables.set('token', jsonData.token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"jasper@test.com\",\n    \"password\": \"Test1234!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/sessions",
+							"host": ["{{baseUrl}}"],
+							"path": ["sessions"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Users",
+			"item": [
+				{
+					"name": "Register User",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Jasper Vandevoort\",\n    \"email\": \"jasper@test.com\",\n    \"password\": \"Test1234!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/users",
+							"host": ["{{baseUrl}}"],
+							"path": ["users"]
+						}
+					}
+				},
+				{
+					"name": "Get User by ID",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/users/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["users", "1"]
+						}
+					}
+				},
+				{
+					"name": "Update User",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Jasper Vandevoort\",\n    \"email\": \"jasper.updated@test.com\",\n    \"password\": \"Test1234!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/users/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["users", "1"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Organizers",
+			"item": [
+				{
+					"name": "Create Organizer",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Jasper Vandevoort\",\n    \"email\": \"organizer@test.com\",\n    \"password\": \"Test1234!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/organizers",
+							"host": ["{{baseUrl}}"],
+							"path": ["organizers"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Venues",
+			"item": [
+				{
+					"name": "Create Venue",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Concert Hall\",\n    \"street\": \"Main Street\",\n    \"city\": \"Leuven\",\n    \"postalCode\": \"3000\",\n    \"houseNumber\": \"123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/venues",
+							"host": ["{{baseUrl}}"],
+							"path": ["venues"]
+						}
+					}
+				},
+				{
+					"name": "Get All Venues",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/venues",
+							"host": ["{{baseUrl}}"],
+							"path": ["venues"]
+						}
+					}
+				},
+				{
+					"name": "Get Venue by ID",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/venues/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["venues", "1"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Events",
+			"item": [
+				{
+					"name": "Create Event",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Rock Concert\",\n    \"description\": \"An amazing rock concert\",\n    \"price\": 50.00,\n    \"date\": \"2026-06-15\",\n    \"venueId\": 1,\n    \"organizerId\": 1\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/events",
+							"host": ["{{baseUrl}}"],
+							"path": ["events"]
+						}
+					}
+				},
+				{
+					"name": "Get All Events",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/events",
+							"host": ["{{baseUrl}}"],
+							"path": ["events"]
+						}
+					}
+				},
+				{
+					"name": "Get Events with Filters",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/events?city=Leuven&fromDate=2026-01-01&toDate=2026-12-31",
+							"host": ["{{baseUrl}}"],
+							"path": ["events"],
+							"query": [
+								{
+									"key": "city",
+									"value": "Leuven"
+								},
+								{
+									"key": "fromDate",
+									"value": "2026-01-01"
+								},
+								{
+									"key": "toDate",
+									"value": "2026-12-31"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Search Events by Name",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/events/search?name=rock",
+							"host": ["{{baseUrl}}"],
+							"path": ["events", "search"],
+							"query": [
+								{
+									"key": "name",
+									"value": "rock"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Events by Venue",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/events/venue/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["events", "venue", "1"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Tickets",
+			"item": [
+				{
+					"name": "Create Ticket",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"code\": \"TICKET-001\",\n    \"eventId\": 1,\n    \"ownerId\": 1,\n    \"askingPrice\": 55.00\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/tickets",
+							"host": ["{{baseUrl}}"],
+							"path": ["tickets"]
+						}
+					}
+				},
+				{
+					"name": "Get Tickets for Event",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/tickets/event/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["tickets", "event", "1"]
+						}
+					}
+				},
+				{
+					"name": "Approve Ticket",
+					"request": {
+						"method": "PUT",
+						"url": {
+							"raw": "{{baseUrl}}/tickets/1/approve",
+							"host": ["{{baseUrl}}"],
+							"path": ["tickets", "1", "approve"]
+						}
+					}
+				},
+				{
+					"name": "Update Ticket Price",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"price\": 45.00\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/tickets/1/price",
+							"host": ["{{baseUrl}}"],
+							"path": ["tickets", "1", "price"]
+						}
+					}
+				},
+				{
+					"name": "Set Ticket For Sale",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"price\": 50.00\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/tickets/1/for-sale",
+							"host": ["{{baseUrl}}"],
+							"path": ["tickets", "1", "for-sale"]
+						}
+					}
+				},
+				{
+					"name": "Purchase Ticket",
+					"request": {
+						"method": "POST",
+						"url": {
+							"raw": "{{baseUrl}}/tickets/1/purchase",
+							"host": ["{{baseUrl}}"],
+							"path": ["tickets", "1", "purchase"]
+						}
+					}
+				},
+				{
+					"name": "Delete Ticket",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{baseUrl}}/tickets/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["tickets", "1"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Ticket Alerts",
+			"item": [
+				{
+					"name": "Subscribe to Event Alerts",
+					"request": {
+						"method": "POST",
+						"url": {
+							"raw": "{{baseUrl}}/events/1/alerts",
+							"host": ["{{baseUrl}}"],
+							"path": ["events", "1", "alerts"]
+						}
+					}
+				},
+				{
+					"name": "Unsubscribe from Event Alerts",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{baseUrl}}/events/1/alerts",
+							"host": ["{{baseUrl}}"],
+							"path": ["events", "1", "alerts"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Streaming",
+			"item": [
+				{
+					"name": "Ticket Stream (SSE)",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/events/1/tickets/stream",
+							"host": ["{{baseUrl}}"],
+							"path": ["events", "1", "tickets", "stream"]
+						}
+					}
+				}
+			]
+		}
+	]
+}

@@ -1,0 +1,56 @@
+CREATE TABLE VENUE (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL,
+    street VARCHAR(255) NOT NULL,
+    city VARCHAR(255) NOT NULL,
+    postal_code VARCHAR(10) NOT NULL,
+    house_number VARCHAR(10) NOT NULL /* Omdat een huisnummer bv ook 2A kan zijn */
+
+);
+
+CREATE TABLE APP_USER (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    hashed_password VARCHAR(255) NOT NULL,
+    role VARCHAR(50) NOT NULL DEFAULT 'USER'
+);
+
+CREATE TABLE ORGANIZER (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    user_id BIGINT,
+
+    FOREIGN KEY (user_id) REFERENCES APP_USER(id)
+);
+
+CREATE TABLE EVENT (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    venue_id BIGINT NOT NULL,
+    organizer_id BIGINT NOT NULL,
+    price DECIMAL(10,2) NOT NULL CHECK (price > 0),
+    event_date DATE NOT NULL,
+
+    FOREIGN KEY (venue_id) REFERENCES VENUE(id),
+    FOREIGN KEY (organizer_id) REFERENCES ORGANIZER(id)
+
+);
+
+CREATE TABLE TICKET (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    code VARCHAR(100) NOT NULL,
+    event_id BIGINT NOT NULL,
+    is_approved BOOLEAN DEFAULT FALSE NOT NULL,
+    is_deleted BOOLEAN DEFAULT FALSE NOT NULL,
+    asking_price DECIMAL(10,2) NOT NULL CHECK (asking_price > 0),
+    owner_id BIGINT NOT NULL,
+
+    FOREIGN KEY (event_id) REFERENCES EVENT(id),
+    FOREIGN KEY (owner_id) REFERENCES APP_USER(id),
+
+
+    UNIQUE (code, event_id)
+);
