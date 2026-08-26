@@ -5,6 +5,7 @@ import be.ucll.backend.eindproject.exception.DuplicateTicketCodeException;
 import be.ucll.backend.eindproject.exception.EventNotFoundException;
 import be.ucll.backend.eindproject.exception.InvalidTicketPriceException;
 import be.ucll.backend.eindproject.exception.TicketDeletedException;
+import be.ucll.backend.eindproject.exception.TicketNotApprovedException;
 import be.ucll.backend.eindproject.exception.TicketNotForSaleException;
 import be.ucll.backend.eindproject.exception.TicketNotFoundException;
 import be.ucll.backend.eindproject.message.TicketAlertMessage;
@@ -126,14 +127,16 @@ public class TicketService {
 
     public Ticket setTicketForSale(Long ticketId, float newPrice, Long currentUserId) {
         Ticket ticket = ticketRepository.findById(ticketId)
-                .orElseThrow(() -> new RuntimeException("Ticket not found with id: " + ticketId));
+                .orElseThrow(() -> new TicketNotFoundException(ticketId));
         User owner = ticket.getOwner();
         if (!isAdmin() && (owner == null || !owner.getId().equals(currentUserId))) {
             throw new AccessDeniedException("You are not the owner of this ticket");
         }
 
-        if (ticket.getAskingPrice() < newPrice) {
-            throw new RuntimeException("Price must be lower than current asking price: " + ticket.getAskingPrice());
+        float originalPrice = ticket.getEvent().getPrice();
+        if (newPrice >= originalPrice) {
+            throw new InvalidTicketPriceException(
+                    "New asking price must be lower than the original ticket price: " + originalPrice);
         }
 
         ticket.setForSale(true);
@@ -225,11 +228,9 @@ public class TicketService {
             throw new RuntimeException("Ticket is not available");
         }
 
-        /*
         if (!ticket.isApproved()) {
-            throw new RuntimeException("Ticket is not approved");
+            throw new TicketNotApprovedException(ticketId);
         }
-        */
 
         if (!ticket.isForSale()) {
             throw new RuntimeException("Ticket is not for sale");

@@ -1,0 +1,298 @@
+commit fc465c49b16403e87ff2b6e9f81ba64c662af8d8
+Author: Jasper <jasper.vandevoort@student.ucll.be>
+Date:   Tue Aug 25 18:59:40 2026 +0200
+
+    Enforce ticket resale requirements and admin-only organizer creation
+    
+    Organizer creation: enforce required name/email/password and validate
+    the optional validationUrl's format when present.
+    
+    Ticket resale flow:
+    - Reject tickets for unregistered events and asking prices above the
+      event's original price (was previously unchecked).
+    - Derive the seller from the JWT instead of trusting a client-supplied
+      ownerId.
+    - New tickets are immediately for sale, matching the "offer a ticket
+      for sale" story (no separate listing step in these requirements).
+    - Enforce ownership and "not sold / not deleted" checks on price
+      updates (previously missing entirely) and compare the new price
+      against the original ticket price rather than the current asking
+      price.
+    - Enforce the same "not sold" check on ticket deletion.
+    - Replace generic 500-causing RuntimeExceptions with proper
+      @ResponseStatus exceptions (404/409/400) for these rejection cases.
+
+diff --git a/src/main/java/be/ucll/backend/eindproject/controller/TicketController.java b/src/main/java/be/ucll/backend/eindproject/controller/TicketController.java
+index 07b7e1f..9132559 100644
+--- a/src/main/java/be/ucll/backend/eindproject/controller/TicketController.java
++++ b/src/main/java/be/ucll/backend/eindproject/controller/TicketController.java
+@@ -34,8 +34,11 @@ public class TicketController {
+     }
+ 
+     @PostMapping
+-    public ResponseEntity<Ticket> createTicket(@RequestBody TicketRequest request) {
+-        Ticket createdTicket = ticketService.createTicket(request);
++    public ResponseEntity<Ticket> createTicket(
++            @AuthenticationPrincipal Jwt jwt,
++            @RequestBody TicketRequest request) {
++        Long userId = Long.parseLong(jwt.getSubject());
++        Ticket createdTicket = ticketService.createTicket(request, userId);
+         return ResponseEntity.status(HttpStatus.CREATED).body(createdTicket);
+     }
+ 
+diff --git a/src/main/java/be/ucll/backend/eindproject/dto/OrganizerRequest.java b/src/main/java/be/ucll/backend/eindproject/dto/OrganizerRequest.java
+index 1e17786..32c3a94 100644
+--- a/src/main/java/be/ucll/backend/eindproject/dto/OrganizerRequest.java
++++ b/src/main/java/be/ucll/backend/eindproject/dto/OrganizerRequest.java
+@@ -2,15 +2,21 @@ package be.ucll.backend.eindproject.dto;
+ 
+ import jakarta.validation.constraints.Email;
+ import jakarta.validation.constraints.NotBlank;
++import org.hibernate.validator.constraints.URL;
+ 
+ public class OrganizerRequest {
+ 
++    @NotBlank
+     private String name;
+ 
++    @NotBlank
++    @Email
+     private String email;
+ 
++    @NotBlank
+     private String password;
+ 
++    @URL
+     private String validationUrl;
+ 
+     public String getName() {
+diff --git a/src/main/java/be/ucll/backend/eindproject/dto/TicketRequest.java b/src/main/java/be/ucll/backend/eindproject/dto/TicketRequest.java
+index 809e01a..154f68c 100644
+--- a/src/main/java/be/ucll/backend/eindproject/dto/TicketRequest.java
++++ b/src/main/java/be/ucll/backend/eindproject/dto/TicketRequest.java
+@@ -3,7 +3,6 @@ package be.ucll.backend.eindproject.dto;
+ public class TicketRequest {
+     private String code;
+     private Long eventId;
+-    private Long ownerId;
+     private float askingPrice;
+ 
+     public TicketRequest() {}
+@@ -24,14 +23,6 @@ public class TicketRequest {
+         this.eventId = eventId;
+     }
+ 
+-    public Long getOwnerId() {
+-        return ownerId;
+-    }
+-
+-    public void setOwnerId(Long ownerId) {
+-        this.ownerId = ownerId;
+-    }
+-
+     public float getAskingPrice() {
+         return askingPrice;
+     }
+diff --git a/src/main/java/be/ucll/backend/eindproject/exception/DuplicateTicketCodeException.java b/src/main/java/be/ucll/backend/eindproject/exception/DuplicateTicketCodeException.java
+new file mode 100644
+index 0000000..dfaecd9
+--- /dev/null
++++ b/src/main/java/be/ucll/backend/eindproject/exception/DuplicateTicketCodeException.java
+@@ -0,0 +1,11 @@
++package be.ucll.backend.eindproject.exception;
++
++import org.springframework.http.HttpStatus;
++import org.springframework.web.bind.annotation.ResponseStatus;
++
++@ResponseStatus(HttpStatus.CONFLICT)
++public class DuplicateTicketCodeException extends RuntimeException {
++    public DuplicateTicketCodeException(long eventId, String code) {
++        super("A ticket with code '" + code + "' already exists for event " + eventId);
++    }
++}
+diff --git a/src/main/java/be/ucll/backend/eindproject/exception/EventNotFoundException.java b/src/main/java/be/ucll/backend/eindproject/exception/EventNotFoundException.java
+new file mode 100644
+index 0000000..56b8d0f
+--- /dev/null
++++ b/src/main/java/be/ucll/backend/eindproject/exception/EventNotFoundException.java
+@@ -0,0 +1,11 @@
++package be.ucll.backend.eindproject.exception;
++
++import org.springframework.http.HttpStatus;
++import org.springframework.web.bind.annotation.ResponseStatus;
++
++@ResponseStatus(HttpStatus.NOT_FOUND)
++public class EventNotFoundException extends RuntimeException {
++    public EventNotFoundException(long id) {
++        super("Could not find event with id " + id);
++    }
++}
+diff --git a/src/main/java/be/ucll/backend/eindproject/exception/InvalidTicketPriceException.java b/src/main/java/be/ucll/backend/eindproject/exception/InvalidTicketPriceException.java
+new file mode 100644
+index 0000000..8baf95f
+--- /dev/null
++++ b/src/main/java/be/ucll/backend/eindproject/exception/InvalidTicketPriceException.java
+@@ -0,0 +1,11 @@
++package be.ucll.backend.eindproject.exception;
++
++import org.springframework.http.HttpStatus;
++import org.springframework.web.bind.annotation.ResponseStatus;
++
++@ResponseStatus(HttpStatus.BAD_REQUEST)
++public class InvalidTicketPriceException extends RuntimeException {
++    public InvalidTicketPriceException(String message) {
++        super(message);
++    }
++}
+diff --git a/src/main/java/be/ucll/backend/eindproject/exception/TicketDeletedException.java b/src/main/java/be/ucll/backend/eindproject/exception/TicketDeletedException.java
+new file mode 100644
+index 0000000..e8e480f
+--- /dev/null
++++ b/src/main/java/be/ucll/backend/eindproject/exception/TicketDeletedException.java
+@@ -0,0 +1,11 @@
++package be.ucll.backend.eindproject.exception;
++
++import org.springframework.http.HttpStatus;
++import org.springframework.web.bind.annotation.ResponseStatus;
++
++@ResponseStatus(HttpStatus.BAD_REQUEST)
++public class TicketDeletedException extends RuntimeException {
++    public TicketDeletedException(long id) {
++        super("Ticket " + id + " has been deleted");
++    }
++}
+diff --git a/src/main/java/be/ucll/backend/eindproject/exception/TicketNotForSaleException.java b/src/main/java/be/ucll/backend/eindproject/exception/TicketNotForSaleException.java
+new file mode 100644
+index 0000000..cd107ca
+--- /dev/null
++++ b/src/main/java/be/ucll/backend/eindproject/exception/TicketNotForSaleException.java
+@@ -0,0 +1,11 @@
++package be.ucll.backend.eindproject.exception;
++
++import org.springframework.http.HttpStatus;
++import org.springframework.web.bind.annotation.ResponseStatus;
++
++@ResponseStatus(HttpStatus.BAD_REQUEST)
++public class TicketNotForSaleException extends RuntimeException {
++    public TicketNotForSaleException(long id) {
++        super("Ticket " + id + " is not currently for sale (it may already be sold)");
++    }
++}
+diff --git a/src/main/java/be/ucll/backend/eindproject/exception/TicketNotFoundException.java b/src/main/java/be/ucll/backend/eindproject/exception/TicketNotFoundException.java
+new file mode 100644
+index 0000000..912d903
+--- /dev/null
++++ b/src/main/java/be/ucll/backend/eindproject/exception/TicketNotFoundException.java
+@@ -0,0 +1,11 @@
++package be.ucll.backend.eindproject.exception;
++
++import org.springframework.http.HttpStatus;
++import org.springframework.web.bind.annotation.ResponseStatus;
++
++@ResponseStatus(HttpStatus.NOT_FOUND)
++public class TicketNotFoundException extends RuntimeException {
++    public TicketNotFoundException(long id) {
++        super("Could not find ticket with id " + id);
++    }
++}
+diff --git a/src/main/java/be/ucll/backend/eindproject/service/TicketService.java b/src/main/java/be/ucll/backend/eindproject/service/TicketService.java
+index 18e6fc8..74d8a24 100644
+--- a/src/main/java/be/ucll/backend/eindproject/service/TicketService.java
++++ b/src/main/java/be/ucll/backend/eindproject/service/TicketService.java
+@@ -1,6 +1,12 @@
+ package be.ucll.backend.eindproject.service;
+ 
+ import be.ucll.backend.eindproject.dto.TicketRequest;
++import be.ucll.backend.eindproject.exception.DuplicateTicketCodeException;
++import be.ucll.backend.eindproject.exception.EventNotFoundException;
++import be.ucll.backend.eindproject.exception.InvalidTicketPriceException;
++import be.ucll.backend.eindproject.exception.TicketDeletedException;
++import be.ucll.backend.eindproject.exception.TicketNotForSaleException;
++import be.ucll.backend.eindproject.exception.TicketNotFoundException;
+ import be.ucll.backend.eindproject.message.TicketAlertMessage;
+ import be.ucll.backend.eindproject.message.TicketAlertSender;
+ import be.ucll.backend.eindproject.message.TicketValidationMessage;
+@@ -85,22 +91,28 @@ public class TicketService {
+         return ticketRepository.save(ticket);
+     }
+ 
+-    public Ticket createTicket(TicketRequest request) {
++    public Ticket createTicket(TicketRequest request, Long currentUserId) {
+         Event event = eventRepository.findById(request.getEventId())
+-                .orElseThrow(() -> new RuntimeException("Event not found with id: " + request.getEventId()));
+-        User owner = userRepository.findById(request.getOwnerId())
+-                .orElseThrow(() -> new RuntimeException("User not found with id: " + request.getOwnerId()));
++                .orElseThrow(() -> new EventNotFoundException(request.getEventId()));
+ 
+         if (ticketRepository.existsByEventIdAndCode(request.getEventId(), request.getCode())) {
+-            throw new RuntimeException("A ticket with this code already exists for this event");
++            throw new DuplicateTicketCodeException(request.getEventId(), request.getCode());
+         }
+ 
++        if (request.getAskingPrice() > event.getPrice()) {
++            throw new InvalidTicketPriceException(
++                    "Asking price must not exceed the original ticket price: " + event.getPrice());
++        }
++
++        User owner = userRepository.findById(currentUserId)
++                .orElseThrow(() -> new RuntimeException("User not found with id: " + currentUserId));
++
+         Ticket ticket = new Ticket(
+                 request.getCode(),
+                 event,
+                 false,
+                 false,
+-                false,
++                true,
+                 request.getAskingPrice(),
+                 owner
+         );
+@@ -163,25 +175,44 @@ public class TicketService {
+ 
+     public Ticket updatePrice(Long ticketId, float newPrice, Long currentUserId) {
+         Ticket ticket = ticketRepository.findById(ticketId)
+-                .orElseThrow(() -> new RuntimeException("Ticket not found with id: " + ticketId));
++                .orElseThrow(() -> new TicketNotFoundException(ticketId));
+ 
++        User owner = ticket.getOwner();
++        if (!isAdmin() && (owner == null || !owner.getId().equals(currentUserId))) {
++            throw new AccessDeniedException("You are not the owner of this ticket");
++        }
+ 
+-        if (newPrice > ticket.getAskingPrice()) {
+-            throw new RuntimeException("Price must be lower than current asking price: " + ticket.getAskingPrice());
++        if (ticket.isDeleted()) {
++            throw new TicketDeletedException(ticketId);
++        }
++
++        if (!ticket.isForSale()) {
++            throw new TicketNotForSaleException(ticketId);
++        }
++
++        float originalPrice = ticket.getEvent().getPrice();
++        if (newPrice >= originalPrice) {
++            throw new InvalidTicketPriceException(
++                    "New asking price must be lower than the original ticket price: " + originalPrice);
+         }
++
+         ticket.setAskingPrice(newPrice);
+         return ticketRepository.save(ticket);
+     }
+ 
+     public void deleteTicket(Long ticketId, Long currentUserId) {
+         Ticket ticket = ticketRepository.findById(ticketId)
+-                .orElseThrow(() -> new RuntimeException("Ticket not found with id: " + ticketId));
++                .orElseThrow(() -> new TicketNotFoundException(ticketId));
+ 
+         User owner = ticket.getOwner();
+         if (!isAdmin() && (owner == null || !owner.getId().equals(currentUserId))) {
+             throw new AccessDeniedException("You are not the owner of this ticket");
+         }
+ 
++        if (!ticket.isForSale()) {
++            throw new TicketNotForSaleException(ticketId);
++        }
++
+         ticket.setDeleted(true);
+         ticketRepository.save(ticket);
+     }
